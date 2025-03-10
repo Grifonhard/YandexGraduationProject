@@ -1,1 +1,5 @@
 креды для подключения к бд
+
+admin
+admin
+yandexGrad

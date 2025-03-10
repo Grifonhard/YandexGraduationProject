@@ -114,3 +114,7 @@ func (db *DB) CreateTables() error {
 		);`)
 	return err
 }
+
+func (db *DB) Close() {
+	db.p.Close()
+}
