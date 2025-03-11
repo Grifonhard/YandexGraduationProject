@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -9,9 +8,9 @@ import (
 )
 
 // CreateUser вставляет новую запись в таблицу Users
-func (db *DB) CreateUser(ctx context.Context, username, passwordHash string) (int, error) {
+func (db *DB) CreateUser(username, passwordHash string) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO Users (username, password_hash) 
 		 VALUES ($1, $2) 
 		 RETURNING id;`,
@@ -30,13 +29,13 @@ func (db *DB) CreateUser(ctx context.Context, username, passwordHash string) (in
 }
 
 // GetUser возвращает пользователя по ID
-func (db *DB) GetUser(ctx context.Context, userID int) (*User, error) {
+func (db *DB) GetUser(username string) (*User, error) {
 	var u User
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, username, password_hash, created_at
 		 FROM Users
-		 WHERE id = $1;`,
-		userID,
+		 WHERE username = $1;`,
+		username,
 	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.CreatedAt)
 
 	if err != nil {
@@ -46,8 +45,8 @@ func (db *DB) GetUser(ctx context.Context, userID int) (*User, error) {
 }
 
 // ListUsers возвращает всех пользователей
-func (db *DB) ListUsers(ctx context.Context) ([]User, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListUsers() ([]User, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, username, password_hash, created_at FROM Users;`,
 	)
 	if err != nil {
@@ -67,8 +66,8 @@ func (db *DB) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 // UpdateUser обновляет поля пользователя
-func (db *DB) UpdateUser(ctx context.Context, userID int, username, passwordHash string) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) UpdateUser(userID int, username, passwordHash string) error {
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE Users
 		 SET username = $1,
 		     password_hash = $2
@@ -85,8 +84,8 @@ func (db *DB) UpdateUser(ctx context.Context, userID int, username, passwordHash
 }
 
 // DeleteUser удаляет пользователя
-func (db *DB) DeleteUser(ctx context.Context, userID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteUser(userID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM Users WHERE id = $1;`,
 		userID,
 	)
@@ -94,9 +93,9 @@ func (db *DB) DeleteUser(ctx context.Context, userID int) error {
 }
 
 // CreateService вставляет новую запись в таблицу Services
-func (db *DB) CreateService(ctx context.Context, userID int, serviceName string) (int, error) {
+func (db *DB) CreateService(userID int, serviceName string) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO Services (user_id, service_name)
 		 VALUES ($1, $2)
 		 RETURNING id;`,
@@ -112,9 +111,9 @@ func (db *DB) CreateService(ctx context.Context, userID int, serviceName string)
 }
 
 // GetService возвращает сервис по ID
-func (db *DB) GetService(ctx context.Context, serviceID int) (*Service, error) {
+func (db *DB) GetService(serviceID int) (*Service, error) {
 	var s Service
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, user_id, service_name, created_at
 		 FROM Services
 		 WHERE id = $1;`,
@@ -127,8 +126,8 @@ func (db *DB) GetService(ctx context.Context, serviceID int) (*Service, error) {
 }
 
 // ListServices возвращает все сервисы (можно фильтровать по userID)
-func (db *DB) ListServices(ctx context.Context, userID int) ([]Service, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListServices(userID int) ([]Service, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, user_id, service_name, created_at 
 		 FROM Services
 		 WHERE user_id = $1;`,
@@ -151,8 +150,8 @@ func (db *DB) ListServices(ctx context.Context, userID int) ([]Service, error) {
 }
 
 // UpdateService обновляет поля сервиса
-func (db *DB) UpdateService(ctx context.Context, serviceID int, serviceName string) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) UpdateService(serviceID int, serviceName string) error {
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE Services
 		 SET service_name = $1
 		 WHERE id = $2;`,
@@ -167,8 +166,8 @@ func (db *DB) UpdateService(ctx context.Context, serviceID int, serviceName stri
 }
 
 // DeleteService удаляет сервис
-func (db *DB) DeleteService(ctx context.Context, serviceID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteService(serviceID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM Services 
 		 WHERE id = $1;`,
 		serviceID,
@@ -177,9 +176,9 @@ func (db *DB) DeleteService(ctx context.Context, serviceID int) error {
 }
 
 // CreateServiceCred вставляет новую запись в таблицу ServicesCreds
-func (db *DB) CreateServiceCred(ctx context.Context, userID, serviceID int, login string, passwordEncrypt []byte, meta []byte) (int, error) {
+func (db *DB) CreateServiceCred(userID, serviceID int, login string, passwordEncrypt []byte, meta []byte) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO ServicesCreds (user_id, service_id, login, password_encrypt, meta)
 		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id;`,
@@ -189,9 +188,9 @@ func (db *DB) CreateServiceCred(ctx context.Context, userID, serviceID int, logi
 }
 
 // GetServiceCred возвращает запись из ServicesCreds по ID
-func (db *DB) GetServiceCred(ctx context.Context, credID int) (*ServiceCred, error) {
+func (db *DB) GetServiceCred(credID int) (*ServiceCred, error) {
 	var sc ServiceCred
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, user_id, service_id, login, password_encrypt, meta, created_at, updated_at
 		 FROM ServicesCreds
 		 WHERE id = $1;`,
@@ -208,8 +207,8 @@ func (db *DB) GetServiceCred(ctx context.Context, credID int) (*ServiceCred, err
 }
 
 // ListServiceCreds возвращает все записи из ServicesCreds (по userID и serviceID)
-func (db *DB) ListServiceCreds(ctx context.Context, userID, serviceID int) ([]ServiceCred, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListServiceCreds(userID, serviceID int) ([]ServiceCred, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, user_id, service_id, login, password_encrypt, meta, created_at, updated_at
 		 FROM ServicesCreds
 		 WHERE user_id = $1 AND service_id = $2;`,
@@ -236,9 +235,9 @@ func (db *DB) ListServiceCreds(ctx context.Context, userID, serviceID int) ([]Se
 }
 
 // UpdateServiceCred обновляет запись в ServicesCreds
-func (db *DB) UpdateServiceCred(ctx context.Context, credID int, login string, passwordEncrypt, meta []byte) error {
+func (db *DB) UpdateServiceCred(credID int, login string, passwordEncrypt, meta []byte) error {
 	now := time.Now()
-	_, err := db.p.Exec(ctx,
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE ServicesCreds
 		 SET login = $1,
 		     password_encrypt = $2,
@@ -250,8 +249,8 @@ func (db *DB) UpdateServiceCred(ctx context.Context, credID int, login string, p
 }
 
 // DeleteServiceCred удаляет запись из ServicesCreds
-func (db *DB) DeleteServiceCred(ctx context.Context, credID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteServiceCred(credID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM ServicesCreds WHERE id = $1;`,
 		credID,
 	)
@@ -259,9 +258,9 @@ func (db *DB) DeleteServiceCred(ctx context.Context, credID int) error {
 }
 
 // CreateTextData вставляет новую запись в таблицу TextData
-func (db *DB) CreateTextData(ctx context.Context, userID, serviceID int, textData string, meta []byte) (int, error) {
+func (db *DB) CreateTextData(userID, serviceID int, textData string, meta []byte) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO TextData (user_id, service_id, text_data, meta)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id;`,
@@ -271,9 +270,9 @@ func (db *DB) CreateTextData(ctx context.Context, userID, serviceID int, textDat
 }
 
 // GetTextData возвращает запись из TextData по ID
-func (db *DB) GetTextData(ctx context.Context, textDataID int) (*TextData, error) {
+func (db *DB) GetTextData(textDataID int) (*TextData, error) {
 	var td TextData
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, user_id, service_id, text_data, meta, created_at, updated_at
 		 FROM TextData
 		 WHERE id = $1;`,
@@ -289,8 +288,8 @@ func (db *DB) GetTextData(ctx context.Context, textDataID int) (*TextData, error
 }
 
 // ListTextData возвращает все записи из TextData (по userID и serviceID)
-func (db *DB) ListTextData(ctx context.Context, userID, serviceID int) ([]TextData, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListTextData(userID, serviceID int) ([]TextData, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, user_id, service_id, text_data, meta, created_at, updated_at
 		 FROM TextData
 		 WHERE user_id = $1 AND service_id = $2;`,
@@ -316,9 +315,9 @@ func (db *DB) ListTextData(ctx context.Context, userID, serviceID int) ([]TextDa
 }
 
 // UpdateTextData обновляет запись в TextData
-func (db *DB) UpdateTextData(ctx context.Context, textDataID int, textData string, meta []byte) error {
+func (db *DB) UpdateTextData(textDataID int, textData string, meta []byte) error {
 	now := time.Now()
-	_, err := db.p.Exec(ctx,
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE TextData
 		 SET text_data = $1,
 		     meta = $2,
@@ -329,8 +328,8 @@ func (db *DB) UpdateTextData(ctx context.Context, textDataID int, textData strin
 }
 
 // DeleteTextData удаляет запись из TextData
-func (db *DB) DeleteTextData(ctx context.Context, textDataID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteTextData(textDataID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM TextData WHERE id = $1;`,
 		textDataID,
 	)
@@ -338,9 +337,9 @@ func (db *DB) DeleteTextData(ctx context.Context, textDataID int) error {
 }
 
 // CreateTextBytes вставляет новую запись в таблицу TextBytes
-func (db *DB) CreateTextBytes(ctx context.Context, userID, serviceID int, textBytes []byte, meta []byte) (int, error) {
+func (db *DB) CreateTextBytes(userID, serviceID int, textBytes []byte, meta []byte) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO TextBytes (user_id, service_id, text_bytes, meta)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id;`,
@@ -350,9 +349,9 @@ func (db *DB) CreateTextBytes(ctx context.Context, userID, serviceID int, textBy
 }
 
 // GetTextBytes возвращает запись из TextBytes по ID
-func (db *DB) GetTextBytes(ctx context.Context, textBytesID int) (*TextBytes, error) {
+func (db *DB) GetTextBytes(textBytesID int) (*TextBytes, error) {
 	var tb TextBytes
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, user_id, service_id, text_bytes, meta, created_at, updated_at
 		 FROM TextBytes
 		 WHERE id = $1;`,
@@ -368,8 +367,8 @@ func (db *DB) GetTextBytes(ctx context.Context, textBytesID int) (*TextBytes, er
 }
 
 // ListTextBytes возвращает все записи из TextBytes (по userID и serviceID)
-func (db *DB) ListTextBytes(ctx context.Context, userID, serviceID int) ([]TextBytes, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListTextBytes(userID, serviceID int) ([]TextBytes, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, user_id, service_id, text_bytes, meta, created_at, updated_at
 		 FROM TextBytes
 		 WHERE user_id = $1 AND service_id = $2;`,
@@ -395,9 +394,9 @@ func (db *DB) ListTextBytes(ctx context.Context, userID, serviceID int) ([]TextB
 }
 
 // UpdateTextBytes обновляет запись в TextBytes
-func (db *DB) UpdateTextBytes(ctx context.Context, textBytesID int, textBytes []byte, meta []byte) error {
+func (db *DB) UpdateTextBytes(textBytesID int, textBytes []byte, meta []byte) error {
 	now := time.Now()
-	_, err := db.p.Exec(ctx,
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE TextBytes
 		 SET text_bytes = $1,
 		     meta = $2,
@@ -408,8 +407,8 @@ func (db *DB) UpdateTextBytes(ctx context.Context, textBytesID int, textBytes []
 }
 
 // DeleteTextBytes удаляет запись из TextBytes
-func (db *DB) DeleteTextBytes(ctx context.Context, textBytesID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteTextBytes(textBytesID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM TextBytes WHERE id = $1;`,
 		textBytesID,
 	)
@@ -417,9 +416,9 @@ func (db *DB) DeleteTextBytes(ctx context.Context, textBytesID int) error {
 }
 
 // CreateCard вставляет новую запись в таблицу Cards
-func (db *DB) CreateCard(ctx context.Context, userID, serviceID int, cardEncrypt []byte, cardLast string, expMonth, expYear int, meta []byte) (int, error) {
+func (db *DB) CreateCard(userID, serviceID int, cardEncrypt []byte, cardLast string, expMonth, expYear int, meta []byte) (int, error) {
 	var id int
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`INSERT INTO Cards (user_id, service_id, card_encrypt, card_last, exp_month, exp_year, meta)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 RETURNING id;`,
@@ -429,9 +428,9 @@ func (db *DB) CreateCard(ctx context.Context, userID, serviceID int, cardEncrypt
 }
 
 // GetCard возвращает запись из Cards по ID
-func (db *DB) GetCard(ctx context.Context, cardID int) (*Card, error) {
+func (db *DB) GetCard(cardID int) (*Card, error) {
 	var c Card
-	err := db.p.QueryRow(ctx,
+	err := db.p.QueryRow(db.ctx,
 		`SELECT id, user_id, service_id, card_encrypt, card_last, exp_month, exp_year, meta, created_at, updated_at
 		 FROM Cards
 		 WHERE id = $1;`,
@@ -447,8 +446,8 @@ func (db *DB) GetCard(ctx context.Context, cardID int) (*Card, error) {
 }
 
 // ListCards возвращает все записи из Cards (по userID и serviceID)
-func (db *DB) ListCards(ctx context.Context, userID, serviceID int) ([]Card, error) {
-	rows, err := db.p.Query(ctx,
+func (db *DB) ListCards(userID, serviceID int) ([]Card, error) {
+	rows, err := db.p.Query(db.ctx,
 		`SELECT id, user_id, service_id, card_encrypt, card_last, exp_month, exp_year, meta, created_at, updated_at
 		 FROM Cards
 		 WHERE user_id = $1 AND service_id = $2;`,
@@ -474,9 +473,9 @@ func (db *DB) ListCards(ctx context.Context, userID, serviceID int) ([]Card, err
 }
 
 // UpdateCard обновляет запись в Cards
-func (db *DB) UpdateCard(ctx context.Context, cardID int, cardEncrypt []byte, cardLast string, expMonth, expYear int, meta []byte) error {
+func (db *DB) UpdateCard(cardID int, cardEncrypt []byte, cardLast string, expMonth, expYear int, meta []byte) error {
 	now := time.Now()
-	_, err := db.p.Exec(ctx,
+	_, err := db.p.Exec(db.ctx,
 		`UPDATE Cards
 		 SET card_encrypt = $1,
 		     card_last = $2,
@@ -491,8 +490,8 @@ func (db *DB) UpdateCard(ctx context.Context, cardID int, cardEncrypt []byte, ca
 }
 
 // DeleteCard удаляет запись из Cards
-func (db *DB) DeleteCard(ctx context.Context, cardID int) error {
-	_, err := db.p.Exec(ctx,
+func (db *DB) DeleteCard(cardID int) error {
+	_, err := db.p.Exec(db.ctx,
 		`DELETE FROM Cards WHERE id = $1;`,
 		cardID,
 	)

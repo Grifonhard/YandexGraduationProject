@@ -3,6 +3,8 @@ module github.com/Grifonhard/YandexGraduationProject
 go 1.23.1
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
 	go.uber.org/zap v1.27.0
 )

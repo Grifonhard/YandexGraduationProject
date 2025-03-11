@@ -2,12 +2,14 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DB struct {
 	p *pgxpool.Pool
+	ctx context.Context
 }
 
 const (
@@ -21,6 +23,9 @@ func New(uri string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute)
+
+	db.ctx = ctx
 
 	err = db.CreateTables()
 	if err != nil {
@@ -32,7 +37,7 @@ func New(uri string) (*DB, error) {
 
 func (db *DB) CreateTables() error {
 	// TODO связь с BalanceTransactions обновить
-	_, err := db.p.Exec(context.Background(), `
+	_, err := db.p.Exec(db.ctx, `
 		CREATE TABLE IF NOT EXISTS Users (
 			id SERIAL PRIMARY KEY,
 			username VARCHAR(255) UNIQUE NOT NULL,
