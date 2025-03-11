@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -28,7 +29,7 @@ func (db *DB) CreateUser(username, passwordHash string) (int, error) {
 	return id, nil
 }
 
-// GetUser возвращает пользователя по ID
+// GetUser возвращает пользователя
 func (db *DB) GetUser(username string) (*User, error) {
 	var u User
 	err := db.p.QueryRow(db.ctx,
@@ -65,14 +66,13 @@ func (db *DB) ListUsers() ([]User, error) {
 	return users, rows.Err()
 }
 
-// UpdateUser обновляет поля пользователя
-func (db *DB) UpdateUser(userID int, username, passwordHash string) error {
+// UpdateUser обновляет хэш пароля
+func (db *DB) UpdateUser(userID int, passwordHash string) error {
 	_, err := db.p.Exec(db.ctx,
 		`UPDATE Users
-		 SET username = $1,
-		     password_hash = $2
+		 SET password_hash = $2
 		 WHERE id = $3;`,
-		username, passwordHash, userID)
+		passwordHash, userID)
 	if err != nil {
 		// Проверяем ошибку на дубликат username
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == ERRDUPLICATE {
@@ -90,6 +90,93 @@ func (db *DB) DeleteUser(userID int) error {
 		userID,
 	)
 	return err
+}
+
+// CreateToken создаёт новую запись в Tokens, возвращает ID созданной записи.
+func (db *DB) CreateToken(userID int, uuid string, expiredAt *time.Time) (int, error) {
+    var id int
+
+    // Если expiredAt не задан, можно передавать nil, тогда поле будет NULL в БД
+    // либо используем COALESCE, в зависимости от вашей логики
+    query := `
+        INSERT INTO Tokens (user_id, uuid, expired_at)
+        VALUES ($1, $2, $3)
+        RETURNING id
+    `
+    err := db.p.QueryRow(db.ctx, query, userID, uuid, expiredAt).Scan(&id)
+
+    if err != nil {
+        return 0, err
+    }
+    return id, nil
+}
+
+// GetToken возвращает запись из Tokens по uuid.
+func (db *DB) GetToken(uuid string) (*Token, error) {
+    row := db.p.QueryRow(db.ctx, `
+        SELECT id, user_id, uuid, expired_at
+        FROM Tokens
+        WHERE uuid = $1
+    `, uuid)
+
+    var t Token
+    var expiredAt sql.NullTime
+
+    err := row.Scan(&t.ID, &t.UserID, &t.UUID, &expiredAt)
+    if err != nil {
+        return nil, err
+    }
+
+    if expiredAt.Valid {
+        t.ExpiredAt = &expiredAt.Time
+    } else {
+        t.ExpiredAt = nil
+    }
+
+    return &t, nil
+}
+
+// ListTokens возвращает все токены
+func (db *DB) ListTokens() ([]Token, error) {
+    rows, err := db.p.Query(db.ctx, `
+        SELECT id, user_id, uuid, expired_at
+        FROM Tokens
+    `)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var tokens []Token
+
+    for rows.Next() {
+        var t Token
+        var expiredAt sql.NullTime
+
+        if err := rows.Scan(&t.ID, &t.UserID, &t.UUID, &expiredAt); err != nil {
+            return nil, err
+        }
+        if expiredAt.Valid {
+            t.ExpiredAt = &expiredAt.Time
+        } else {
+            t.ExpiredAt = nil
+        }
+        tokens = append(tokens, t)
+    }
+    if err = rows.Err(); err != nil {
+        return nil, err
+    }
+
+    return tokens, nil
+}
+
+// DeleteToken удаляет запись из Tokens по ID user.
+func (db *DB) DeleteToken(tokenID int) error {
+    _, err := db.p.Exec(db.ctx, `
+        DELETE FROM Tokens
+        WHERE user_id = $1
+    `, tokenID)
+    return err
 }
 
 // CreateService вставляет новую запись в таблицу Services

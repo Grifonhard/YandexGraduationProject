@@ -9,6 +9,13 @@ type User struct {
 	CreatedAt    time.Time
 }
 
+type Token struct {
+    ID        int
+    UserID    int
+    UUID      string
+    ExpiredAt *time.Time
+}
+
 type Service struct {
 	ID          int
 	UserID      int

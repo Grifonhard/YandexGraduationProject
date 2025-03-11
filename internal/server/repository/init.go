@@ -45,6 +45,13 @@ func (db *DB) CreateTables() error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		);
 
+		CREATE TABLE IF NOT EXISTS Tokens (
+			id SERIAL PRIMARY KEY,
+			user_id INT NOT NULL REFERENCES Users(id) ON DELETE CASCADE,
+			uuid VARCHAR(36) NOT NULL,
+			expired_at TIMESTAMP
+		);
+
 		CREATE TABLE IF NOT EXISTS Services (
 			id SERIAL PRIMARY KEY,
 			user_id INT NOT NULL REFERENCES Users(id) ON DELETE CASCADE,

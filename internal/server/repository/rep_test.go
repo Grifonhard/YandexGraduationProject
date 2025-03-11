@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Grifonhard/YandexGraduationProject/DB/server"
@@ -51,7 +52,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		// 4. Update пользователя
-		err = db.UpdateUser(userID, "updated_user", "updated_hash")
+		err = db.UpdateUser(userID, "updated_hash")
 		if err != nil {
 			t.Fatalf("UpdateUser возвращает ошибку: %v", err)
 		}
@@ -61,7 +62,7 @@ func TestIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GetUser возвращает ошибку при повторном вызове: %v", err)
 		}
-		if gotUser.Username != "updated_user" || gotUser.PasswordHash != "updated_hash" {
+		if gotUser.PasswordHash != "updated_hash" {
 			t.Errorf("данные после UpdateUser не совпадают с ожидаемыми")
 		}
 
@@ -333,4 +334,90 @@ func TestIntegration(t *testing.T) {
 			t.Error("после удаления Card всё ещё существует")
 		}
 	})
+}
+
+func TestTokens(t *testing.T) {
+    
+    db, err := New("postgres://postgres:password@localhost:5432/testdb?sslmode=disable")
+    if err != nil {
+        t.Fatalf("Failed to connect to test DB: %v", err)
+    }
+    defer db.Close()
+
+    userID, err := db.CreateUser("test_user", "hash123")
+    if err != nil {
+        t.Fatalf("failed to create test user: %v", err)
+    }
+
+    var (
+        createdTokenID int
+        testUUID       = "test-uuid-1234"
+    )
+
+    t.Run("CreateToken", func(t *testing.T) {
+        id, err := db.CreateToken(userID, testUUID, nil)
+        if err != nil {
+            t.Fatalf("CreateToken error: %v", err)
+        }
+        if id == 0 {
+            t.Errorf("Expected a valid token ID (non-zero), got 0")
+        }
+
+        createdTokenID = id
+        fmt.Printf("Created token ID = %d", createdTokenID)
+    })
+
+    t.Run("GetToken", func(t *testing.T) {
+        tok, err := db.GetToken(testUUID)
+        if err != nil {
+            t.Fatalf("GetToken error: %v", err)
+        }
+        if tok.ID != createdTokenID {
+            t.Errorf("Expected ID=%d, got %d", createdTokenID, tok.ID)
+        }
+        if tok.UserID != userID {
+            t.Errorf("Expected UserID=%d, got %d", userID, tok.UserID)
+        }
+        if tok.UUID != testUUID {
+            t.Errorf("Expected UUID=%s, got %s", testUUID, tok.UUID)
+        }
+        if tok.ExpiredAt != nil {
+            t.Errorf("Expected nil ExpiredAt, got %v", tok.ExpiredAt)
+        }
+    })
+
+    t.Run("ListTokens", func(t *testing.T) {
+        tokens, err := db.ListTokens()
+        if err != nil {
+            t.Fatalf("ListTokens error: %v", err)
+        }
+        if len(tokens) == 0 {
+            t.Fatalf("Expected at least 1 token, got 0")
+        }
+
+        // Ищем наш токен в списке
+        var found bool
+        for _, tk := range tokens {
+            if tk.ID == createdTokenID {
+                found = true
+                break
+            }
+        }
+        if !found {
+            t.Errorf("Token with ID=%d not found in ListTokens result", createdTokenID)
+        }
+    })
+
+    t.Run("DeleteToken", func(t *testing.T) {
+        err := db.DeleteToken(createdTokenID)
+        if err != nil {
+            t.Fatalf("DeleteToken error: %v", err)
+        }
+
+        // Проверим, что теперь GetToken вернёт ошибку
+        _, err = db.GetToken(testUUID)
+        if err == nil {
+            t.Error("Expected an error after deleting token, got nil")
+        }
+    })
 }

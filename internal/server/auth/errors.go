@@ -9,4 +9,8 @@ var (
 	ErrNoExpTime = errors.New("invalid token, no exp")
 	ErrUserNotFound = errors.New("user not found")
 	ErrWrongPW = errors.New("wrong password")
+	ErrEmptyToken = errors.New("empty token")
+	ErrAuthFail = errors.New("authentication failed")
+	ErrBadToken = errors.New("bad token")
+	ErrBadClaims = errors.New("bad claims")
 )
