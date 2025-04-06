@@ -13,4 +13,6 @@ var (
 	ErrAuthFail = errors.New("authentication failed")
 	ErrBadToken = errors.New("bad token")
 	ErrBadClaims = errors.New("bad claims")
+	ErrBadClient = errors.New("the information about the mac address and the client's IP do not match")
+	ErrWasUsed = errors.New("one-time password has already been used")
 )

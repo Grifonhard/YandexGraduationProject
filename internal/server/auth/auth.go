@@ -36,6 +36,10 @@ func (s *Service) Login(username, hashpw string) (token string, err error) {
 		return "", fmt.Errorf("get user from db error: %w", err)
 	}
 
+	if user.Disposable && !user.IsActive {
+		return "", ErrWasUsed
+	}
+
 	if user.PasswordHash != hashpw {
 		return "", ErrWrongPW
 	}
@@ -56,7 +60,7 @@ func (s *Service) Login(username, hashpw string) (token string, err error) {
 }
 
 // Authenticate проверяем токен, сравниваем с записью в бд
-func (s *Service) Authenticate(token string) (userInfo *User, err error) {
+func (s *Service) Authenticate(token, mac, ip string) (userInfo *User, err error) {
 	if token == "" {
 		return nil, ErrEmptyToken
 	}
@@ -64,6 +68,11 @@ func (s *Service) Authenticate(token string) (userInfo *User, err error) {
 	t, err := decodeToken(token)
 	if err != nil {
 		return nil, fmt.Errorf("%w %s", ErrBadToken, err.Error())
+	}
+
+	err = checkClient(token, mac, ip)
+	if err != nil {
+		return nil, err
 	}
 
 	userInfo, err = getUserFromClaims(t)
@@ -100,7 +109,19 @@ func (s *Service) ChangePassword(uname, oldPW, newPW string) error {
 		return ErrWrongPW
 	}
 
-	return s.db.UpdateUser(user.ID, newPW)
+	return s.db.UpdateUser(user.ID, "", newPW)
+}
+
+// ChangeUsername меняет username
+func (s *Service) ChangeUsername(currentUname, newUname string) error {
+	user, err := s.db.GetUser(currentUname)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrUserNotFound
+	} else if err != nil {
+		return fmt.Errorf("get user from db error: %w", err)
+	}
+
+	return s.db.UpdateUser(user.ID, newUname, "")
 }
 
 // Logout удаляем токен из списка действующих
@@ -130,4 +151,17 @@ func (s *Service) CleanExpiredTokens() error {
 	return nil
 }
 
-func (s *Service) CreateUser(username string)
+func (s *Service) CreateUser(username string) (tempPW string, err error) {
+	tempPW, err = passwordGenerate(10)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.db.CreateUser(username, tempPW)
+	if err != nil {
+		return "", err
+	}
+
+	return tempPW, nil
+}
+

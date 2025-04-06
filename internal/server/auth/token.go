@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
-	"time"
 )
 
 type tokenDetails struct {
@@ -19,6 +21,8 @@ const (
 	ACCESS_UUID_KEY = "access_uuid"
 	USER_ID_KEY = "user_id"
 	USER_NAME_KEY = "user_name"
+	CLIENT_IP = "client_ip" 		// для того чтобы гарантировать, что токен используется конкретным устройством, на котором произошёл логин
+	CLIENT_MAC = "client_mac"		// для того чтобы гарантировать, что токен используется конкретным устройством, на котором произошёл логин
 	EXPIRED_KEY = "exp"
 )
 
@@ -139,4 +143,18 @@ func getUserFromClaims(claims jwt.MapClaims) (*User, error) {
 	user.ExpiredAt = time.Unix(expInt64, 0)
 
 	return &user, nil
+}
+
+// checkClient проверяет что этот тот же клиент по мак адресу и ip 
+func checkClient(tokenString string, mac, ip string) error {
+	claims, err := decodeToken(tokenString)
+	if err != nil {
+		return fmt.Errorf("decode token fail %w", err)
+	}
+
+	if claims[CLIENT_MAC] != mac || claims[CLIENT_IP] != ip {
+		return ErrBadClient
+	} else {
+		return nil
+	}
 }

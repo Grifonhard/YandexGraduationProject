@@ -6,6 +6,8 @@ type User struct {
 	ID           int
 	Username     string
 	PasswordHash string
+	Disposable bool
+	IsActive bool
 	CreatedAt    time.Time
 }
 

@@ -3,17 +3,19 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// CreateUser вставляет новую запись в таблицу Users
+// CreateUser вставляет новую запись в таблицу Users, пароль по умолчанию одноразовый
 func (db *DB) CreateUser(username, passwordHash string) (int, error) {
 	var id int
 	err := db.p.QueryRow(db.ctx,
-		`INSERT INTO Users (username, password_hash) 
-		 VALUES ($1, $2) 
+		`INSERT INTO Users (username, password_hash, disposable) 
+		 VALUES ($1, $2, true) 
 		 RETURNING id;`,
 		username, passwordHash,
 	).Scan(&id)
@@ -33,11 +35,11 @@ func (db *DB) CreateUser(username, passwordHash string) (int, error) {
 func (db *DB) GetUser(username string) (*User, error) {
 	var u User
 	err := db.p.QueryRow(db.ctx,
-		`SELECT id, username, password_hash, created_at
+		`SELECT id, username, password_hash, disposable, is_active, created_at
 		 FROM Users
 		 WHERE username = $1;`,
 		username,
-	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.CreatedAt)
+	).Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Disposable, &u.IsActive, &u.CreatedAt)
 
 	if err != nil {
 		return nil, err
@@ -48,7 +50,7 @@ func (db *DB) GetUser(username string) (*User, error) {
 // ListUsers возвращает всех пользователей
 func (db *DB) ListUsers() ([]User, error) {
 	rows, err := db.p.Query(db.ctx,
-		`SELECT id, username, password_hash, created_at FROM Users;`,
+		`SELECT id, username, password_hash, disposable, is_active, created_at FROM Users;`,
 	)
 	if err != nil {
 		return nil, err
@@ -58,7 +60,7 @@ func (db *DB) ListUsers() ([]User, error) {
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.Disposable, &u.IsActive, &u.CreatedAt); err != nil {
 			return nil, err
 		}
 		users = append(users, u)
@@ -66,13 +68,36 @@ func (db *DB) ListUsers() ([]User, error) {
 	return users, rows.Err()
 }
 
-// UpdateUser обновляет хэш пароля
-func (db *DB) UpdateUser(userID int, passwordHash string) error {
-	_, err := db.p.Exec(db.ctx,
-		`UPDATE Users
-		 SET password_hash = $2
-		 WHERE id = $3;`,
-		passwordHash, userID)
+
+// UpdateUser обновляет username и/или password_hash, если они заданы (не пустые)
+func (db *DB) UpdateUser(userID int, username, passwordHash string) error {
+	// Формируем список частей SET в запросе и массив параметров
+	setParts := []string{}
+	params := []interface{}{}
+
+	// Если username передан, добавляем его в запрос
+	if username != "" {
+		setParts = append(setParts, fmt.Sprintf("username = $%d", len(params)+1))
+		params = append(params, username)
+	}
+	// Если passwordHash передан, добавляем его в запрос
+	if passwordHash != "" {
+		setParts = append(setParts, fmt.Sprintf("password_hash = $%d", len(params)+1))
+		params = append(params, passwordHash)
+	}
+
+	// Если ни одно из полей не передано, нечего обновлять
+	if len(setParts) == 0 {
+		return nil
+	}
+
+	// Собираем финальный SQL-запрос
+	query := "UPDATE Users SET " + strings.Join(setParts, ", ") +
+		" WHERE id = $" + strconv.Itoa(len(params)+1)
+	// Добавляем userID как последний параметр
+	params = append(params, userID)
+
+	_, err := db.p.Exec(db.ctx, query, params...)
 	if err != nil {
 		// Проверяем ошибку на дубликат username
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == ERRDUPLICATE {
