@@ -16,3 +16,8 @@ var (
 	ErrBadClient = errors.New("the information about the mac address and the client's IP do not match")
 	ErrWasUsed = errors.New("one-time password has already been used")
 )
+
+// sync
+var (
+	ErrAlreadyStart = errors.New("already being processed")
+)

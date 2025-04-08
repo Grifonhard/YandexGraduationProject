@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Grifonhard/YandexGraduationProject/internal/server/repository"
+	"github.com/Grifonhard/YandexGraduationProject/internal/utils"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -93,6 +94,8 @@ func (s *Service) Authenticate(token, mac, ip string) (userInfo *User, err error
 		return nil, fmt.Errorf("foreign token %w", ErrBadToken)
 	}
 
+	// если необходима синхронизация другого девайса возвращает специальную ошибку
+
 	return userInfo, nil
 }
 
@@ -151,8 +154,9 @@ func (s *Service) CleanExpiredTokens() error {
 	return nil
 }
 
+// CreateUser создание нового юзера
 func (s *Service) CreateUser(username string) (tempPW string, err error) {
-	tempPW, err = passwordGenerate(10)
+	tempPW, err = utils.GenerateString(10)
 	if err != nil {
 		return "", err
 	}
@@ -164,4 +168,3 @@ func (s *Service) CreateUser(username string) (tempPW string, err error) {
 
 	return tempPW, nil
 }
-
