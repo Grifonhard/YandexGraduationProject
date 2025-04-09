@@ -2,6 +2,13 @@ package data
 
 import "time"
 
+// сообщения от активного клиента во время синхронизации с активируемым клиентом
+const (
+	WRONG_PASS = "wrong password"
+	NOT_APPROVED = "new client not approved"
+	APPROVED = "new client approved"
+)
+
 // IpInfo описывает ответ сервиса ipinfo.io
 type IpInfo struct {
 	IP       string `json:"ip"`
@@ -15,7 +22,8 @@ type IpInfo struct {
 
 // ClientData данные хранимые только на клиенте
 type ClientData struct {
-	SaltPW string 
+	SaltPW string
+	Err error
 }
 
 // ClientInfo информация о клиенте

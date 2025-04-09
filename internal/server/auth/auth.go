@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Grifonhard/YandexGraduationProject/internal/logger"
 	"github.com/Grifonhard/YandexGraduationProject/internal/server/repository"
 	"github.com/Grifonhard/YandexGraduationProject/internal/utils"
 	"github.com/jackc/pgx/v5"
@@ -12,11 +13,13 @@ import (
 
 type Service struct {
 	db *repository.DB
+	synClients *syncClients
 }
 
 func New(db *repository.DB) (*Service, error) {
 	return &Service{
 		db: db,
+		synClients: newSyncClients(),
 	}, nil
 }
 
@@ -95,6 +98,19 @@ func (s *Service) Authenticate(token, mac, ip string) (userInfo *User, err error
 	}
 
 	// если необходима синхронизация другого девайса возвращает специальную ошибку
+	status, err := s.synClients.lookForSyncSes(userInfo.Username)
+	switch status {
+	case SYNC_STATUS_CHANGE_TO_ACTIVE_SES:
+		if err != nil {
+			return nil, err
+		} else {
+			logger.Error("missing special error")
+		}
+	default:
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return userInfo, nil
 }

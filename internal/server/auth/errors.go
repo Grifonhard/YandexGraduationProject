@@ -20,4 +20,12 @@ var (
 // sync
 var (
 	ErrAlreadyStart = errors.New("already being processed")
+	ErrNotFound = errors.New("not found")
+	ErrTimeOut = errors.New("time out")
+	ErrUnexpMes = errors.New("unexpected message from current client")
+	ErrChanFullUnexp = errors.New("unexpected channel is full")
+	ErrChanEmptyUnexp = errors.New("unexpected channel is empty")
+	ErrStartSync = errors.New("start synchronization session")
+	ErrUnexpActiveTooMuch = errors.New("unexpectedly too many active sessions")
+	ErrUnexpActiveZero = errors.New("unexpectedly no active sessions")
 )
